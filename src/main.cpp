@@ -42,8 +42,8 @@ void readSensors(bool* values) {
 #define PWM_FREQ     5000   // 5kHz
 #define PWM_RES      8      // 8 位分辨率 (0-255)
 #define MAX_SPEED    255
-// 60% 速度 ≈ 153（L298N 需要足够电压才能转动）
-int motorSpeed = 153;
+// 40% 速度 ≈ 100（L298N 需要足够电压才能转动）
+int motorSpeed = 100;
 
 // PWM 通道分配
 const int CH_LF = 0;  // IN1 - 左前
@@ -114,7 +114,7 @@ String currentCmd = "stop";
 unsigned long lastSafetyCheck = 0;
 const float OBSTACLE_THRESHOLD = 20.0;  // 避障阈值 cm
 unsigned long evacuateStart = 0;        // 撤离开始时间戳（触发的时刻）
-const unsigned long EVACUATE_DURATION = 1000;  // 撤离（反向跑）时长 ms
+const unsigned long EVACUATE_DURATION = 100;  // 撤离（反向跑）时长 ms
 
 // 自动模式（避障模式）：5秒定时
 unsigned long autoMoveStart = 0;
@@ -122,8 +122,8 @@ const unsigned long AUTO_MOVE_DURATION = 5000;
 
 // 巡线模式
 bool lineFollowing = false;
-const int LINE_FOLLOW_SPEED = 100;  // 巡线速度（慢速，0-255）
-int savedMotorSpeed = 153;          // 保存的原速度
+const int LINE_FOLLOW_SPEED = 80;  // 巡线速度（慢速，0-255）
+int savedMotorSpeed = 100;          // 保存的原速度
 unsigned long lastLineCheck = 0;
 
 // ============ HTML 控制页面（嵌入在代码中） ============
@@ -501,8 +501,8 @@ body {
 (function() {
   console.log('ESP32 小车控制已加载');
 
-  // ========= 手动控制（单击切换模式） =========
-  let currentAction = 'stop';
+  // ========= 手动控制（按住移动，松开停止） =========
+  let pointerDownAction = null;
   const stateVal = document.getElementById('stateVal');
   const timerVal = document.getElementById('timerVal');
   const distVal = document.getElementById('distVal');
@@ -515,38 +515,51 @@ body {
         if (t === 'BLOCKED') {
           stateVal.textContent = '⚠ 遇障撤离';
           stateVal.className = 'value val-state state-evacuating';
-          currentAction = 'stop';
+          pointerDownAction = null;
           dpadBtns.forEach(b => b.classList.remove('active'));
         }
       })
       .catch(() => {});
   }
 
+  function handleBtnPress(action) {
+    if (action !== 'stop') {
+      pointerDownAction = action;
+      dpadBtns.forEach(b => b.classList.remove('active'));
+      const el = document.querySelector(`[data-action="${action}"]`);
+      if (el) el.classList.add('active');
+      sendAction(action);
+    } else {
+      pointerDownAction = null;
+      dpadBtns.forEach(b => b.classList.remove('active'));
+      sendAction('stop');
+    }
+  }
+
+  function handleBtnRelease() {
+    if (pointerDownAction) {
+      pointerDownAction = null;
+      dpadBtns.forEach(b => b.classList.remove('active'));
+      sendAction('stop');
+    }
+  }
+
+  // 鼠标 + 触摸：按下启动，全局松开停止
   dpadBtns.forEach(btn => {
-    btn.addEventListener('click', function(e) {
+    btn.addEventListener('mousedown', function(e) {
       e.preventDefault();
-      const action = this.dataset.action;
-      if (action === 'stop') {
-        // STOP 按钮：立即停止
-        currentAction = 'stop';
-        dpadBtns.forEach(b => b.classList.remove('active'));
-        sendAction('stop');
-      } else if (currentAction === action) {
-        // 点击相同方向 → 停止
-        currentAction = 'stop';
-        dpadBtns.forEach(b => b.classList.remove('active'));
-        sendAction('stop');
-      } else {
-        // 点击新方向 → 切换
-        currentAction = action;
-        dpadBtns.forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        sendAction(action);
-      }
+      handleBtnPress(this.dataset.action);
+    });
+    btn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      handleBtnPress(this.dataset.action);
     });
   });
+  document.addEventListener('mouseup', handleBtnRelease);
+  document.addEventListener('touchend', handleBtnRelease);
+  document.addEventListener('touchcancel', handleBtnRelease);
 
-  // 键盘（按下切换，松开不变）
+  // 键盘：按下启动，松开停止
   const keyMap = {
     'ArrowUp':'forward','w':'forward','W':'forward',
     'ArrowDown':'backward','s':'backward','S':'backward',
@@ -556,17 +569,21 @@ body {
   };
   document.addEventListener('keydown', function(e) {
     const a = keyMap[e.key];
-    if (a) { e.preventDefault();
-      if (a === 'stop') {
-        currentAction = 'stop';
-        dpadBtns.forEach(b => b.classList.remove('active'));
-        sendAction('stop');
-      } else if (currentAction !== a) {
-        currentAction = a;
-        dpadBtns.forEach(b => b.classList.remove('active'));
-        const el = document.querySelector(`[data-action="${a}"]`);
-        if (el) el.classList.add('active');
-        sendAction(a);
+    if (a && a !== 'stop') { e.preventDefault();
+      if (pointerDownAction !== a) {
+        handleBtnPress(a);
+      }
+    } else if (a === 'stop') { e.preventDefault();
+      pointerDownAction = null;
+      dpadBtns.forEach(b => b.classList.remove('active'));
+      sendAction('stop');
+    }
+  });
+  document.addEventListener('keyup', function(e) {
+    const a = keyMap[e.key];
+    if (a && a !== 'stop') { e.preventDefault();
+      if (pointerDownAction === a) {
+        handleBtnRelease();
       }
     }
   });
