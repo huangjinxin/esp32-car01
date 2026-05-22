@@ -456,9 +456,9 @@ body {
     <div class="card-title">🎮 手动控制</div>
     <div class="dpad">
       <button class="dpad-btn btn-up"    data-action="forward">▲</button>
-      <button class="dpad-btn btn-left"  data-action="left">◀</button>
+      <button class="dpad-btn btn-left"  data-action="right">▶</button>
       <button class="dpad-btn btn-stop"  data-action="stop">STOP</button>
-      <button class="dpad-btn btn-right" data-action="right">▶</button>
+      <button class="dpad-btn btn-right" data-action="left">◀</button>
       <button class="dpad-btn btn-down"  data-action="backward">▼</button>
     </div>
     <div class="ctrl-hint">
