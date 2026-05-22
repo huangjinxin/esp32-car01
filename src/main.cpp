@@ -235,6 +235,7 @@ body {
   box-shadow: 0 3px 10px rgba(0,0,0,0.15);
   transition: all 0.08s;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -279,6 +280,7 @@ body {
   color: #1e293b;
   transition: all 0.08s;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   flex: 1;
   max-width: 120px;
 }
@@ -325,6 +327,7 @@ body {
   padding: 12px 24px;
   transition: all 0.08s;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   flex: 1;
   max-width: 160px;
 }
@@ -496,6 +499,8 @@ body {
 
 <script>
 (function() {
+  console.log('ESP32 小车控制已加载');
+
   // ========= 手动控制 =========
   let pointerDownAction = null;
   const stateVal = document.getElementById('stateVal');
@@ -516,36 +521,47 @@ body {
       .catch(() => {});
   }
 
+  // 方向键通用处理函数
+  function handleBtnPress(action) {
+    if (action !== 'stop') {
+      pointerDownAction = action;
+      dpadBtns.forEach(b => b.classList.remove('active'));
+      const activeBtn = document.querySelector(`[data-action="${action}"]`);
+      if (activeBtn) activeBtn.classList.add('active');
+      sendAction(action);
+    } else {
+      pointerDownAction = null;
+      dpadBtns.forEach(b => b.classList.remove('active'));
+      sendAction('stop');
+    }
+  }
+
+  function handleBtnRelease() {
+    if (pointerDownAction) {
+      pointerDownAction = null;
+      dpadBtns.forEach(b => b.classList.remove('active'));
+      sendAction('stop');
+    }
+  }
+
+  // 同时支持 mouse + touch 事件
   dpadBtns.forEach(btn => {
-    btn.addEventListener('pointerdown', function(e) {
+    // 鼠标
+    btn.addEventListener('mousedown', function(e) {
       e.preventDefault();
-      const a = this.dataset.action;
-      if (a !== 'stop') {
-        pointerDownAction = a;
-        dpadBtns.forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        sendAction(a);
-      } else {
-        pointerDownAction = null;
-        dpadBtns.forEach(b => b.classList.remove('active'));
-        sendAction('stop');
-      }
+      handleBtnPress(this.dataset.action);
+    });
+    // 触摸
+    btn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      handleBtnPress(this.dataset.action);
     });
   });
-  document.addEventListener('pointerup', function() {
-    if (pointerDownAction) {
-      pointerDownAction = null;
-      dpadBtns.forEach(b => b.classList.remove('active'));
-      sendAction('stop');
-    }
-  });
-  document.addEventListener('pointercancel', function() {
-    if (pointerDownAction) {
-      pointerDownAction = null;
-      dpadBtns.forEach(b => b.classList.remove('active'));
-      sendAction('stop');
-    }
-  });
+
+  // 全局释放（鼠标松开 / 触摸结束）
+  document.addEventListener('mouseup', handleBtnRelease);
+  document.addEventListener('touchend', handleBtnRelease);
+  document.addEventListener('touchcancel', handleBtnRelease);
 
   // 键盘
   const keyMap = {
@@ -582,7 +598,7 @@ body {
     }
   });
 
-  // ========= 避障模式按钮 =========
+  // ========= 避障模式按钮（click 最通用） =========
   const autoBtns = document.querySelectorAll('.auto-btn');
   const autoTimer = document.getElementById('autoTimer');
   const autoStatus = document.getElementById('autoStatus');
@@ -612,7 +628,7 @@ body {
     fetch('/line_action?cmd=start').then(r => r.text()).then(t => {
       if (t === 'LINE_START') {
         lnStart.classList.add('active');
-        lineStatus.innerHTML = '📍 <strong>巡线中</strong> — 沿黑线行驶';
+        lineStatus.innerHTML = '📍 <strong>巡线中</strong>';
       }
     }).catch(() => {});
   });
