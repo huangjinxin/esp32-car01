@@ -493,11 +493,6 @@ body {
   </div><!-- /card-grid -->
 
   <!-- ===== 底部版权 ===== -->
-  <div style="text-align:center;font-size:12px;color:#94a3b8;padding:4px 0 12px">
-    <a href="/test?cmd=forward" target="_blank" style="color:#94a3b8;text-decoration:none;margin:0 8px">测试前进</a>
-    <a href="/test?cmd=stop" target="_blank" style="color:#94a3b8;text-decoration:none;margin:0 8px">测试停止</a>
-    <a href="/test?cmd=info" target="_blank" style="color:#94a3b8;text-decoration:none;margin:0 8px">诊断信息</a>
-  </div>
   <div class="site-footer">制作人：任芊羽</div>
 
 </div>
@@ -742,60 +737,6 @@ void handleRoot() {
 }
 
 // ============ 电机测试诊断 ============
-void handleTest() {
-  String cmd = server.arg("cmd");
-  Serial.printf(">> 收到测试命令: %s\n", cmd.c_str());
-
-  if (cmd == "forward") {
-    // 先用 digitalWrite 直驱测试（不走 PWM）
-    digitalWrite(PIN_IN1, LOW);
-    digitalWrite(PIN_IN2, HIGH);
-    digitalWrite(PIN_IN3, HIGH);
-    digitalWrite(PIN_IN4, LOW);
-    currentCmd = "test_forward";
-    server.send(200, "text/plain", "OK");
-    Serial.println("  直驱测试: 前进 (digitalWrite)");
-  } else if (cmd == "backward") {
-    digitalWrite(PIN_IN1, HIGH);
-    digitalWrite(PIN_IN2, LOW);
-    digitalWrite(PIN_IN3, LOW);
-    digitalWrite(PIN_IN4, HIGH);
-    currentCmd = "test_backward";
-    server.send(200, "text/plain", "OK");
-    Serial.println("  直驱测试: 后退 (digitalWrite)");
-  } else if (cmd == "stop") {
-    digitalWrite(PIN_IN1, LOW);
-    digitalWrite(PIN_IN2, LOW);
-    digitalWrite(PIN_IN3, LOW);
-    digitalWrite(PIN_IN4, LOW);
-    currentCmd = "stop";
-    Serial.println("  直驱测试: 停止");
-    server.send(200, "text/plain", "OK");
-  } else if (cmd == "pwm_forward") {
-    motorSpeed = 200;
-    motorForward();
-    currentCmd = "test_pwm_f";
-    server.send(200, "text/plain", "OK");
-    Serial.printf("  PWM测试: 前进 speed=%d\n", motorSpeed);
-  } else if (cmd == "pwm_stop") {
-    motorStop();
-    currentCmd = "stop";
-    motorSpeed = 153;
-    Serial.println("  PWM测试: 停止");
-    server.send(200, "text/plain", "OK");
-  } else if (cmd == "info") {
-    String json = "{";
-    json += "\"cmd\":\"" + currentCmd + "\",";
-    json += "\"speed\":" + String(motorSpeed) + ",";
-    json += "\"lineFollowing\":" + String(lineFollowing ? "true" : "false") + ",";
-    json += "}";
-    server.send(200, "application/json", json);
-    Serial.println("  返回诊断信息");
-  } else {
-    server.send(400, "text/plain", "BAD");
-  }
-}
-
 void handleAction() {
   String cmd = server.arg("cmd");
   Serial.printf(">> 收到动作: %s (当前状态=%s, speed=%d)\n", cmd.c_str(), currentCmd.c_str(), motorSpeed);
@@ -977,7 +918,6 @@ void setup() {
   server.on("/sensors", handleSensors);
   server.on("/distance", handleDistance);
   server.on("/line_action", handleLineAction);
-  server.on("/test", handleTest);
   server.begin();
   Serial.println("Web 服务器已启动，等待浏览器控制...\n");
 }
