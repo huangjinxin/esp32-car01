@@ -867,11 +867,6 @@ void setup() {
   ledcAttachPin(PIN_IN3, CH_RF);
   ledcSetup(CH_RB, PWM_FREQ, PWM_RES);
   ledcAttachPin(PIN_IN4, CH_RB);
-  // 确保电机引脚为输出（digitalWrite 测试用）
-  pinMode(PIN_IN1, OUTPUT);
-  pinMode(PIN_IN2, OUTPUT);
-  pinMode(PIN_IN3, OUTPUT);
-  pinMode(PIN_IN4, OUTPUT);
   motorStop();
 
   // 初始化巡线传感器引脚
