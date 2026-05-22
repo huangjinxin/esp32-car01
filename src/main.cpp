@@ -493,6 +493,11 @@ body {
   </div><!-- /card-grid -->
 
   <!-- ===== 底部版权 ===== -->
+  <div style="text-align:center;font-size:12px;color:#94a3b8;padding:4px 0 12px">
+    <a href="/test?cmd=forward" target="_blank" style="color:#94a3b8;text-decoration:none;margin:0 8px">测试前进</a>
+    <a href="/test?cmd=stop" target="_blank" style="color:#94a3b8;text-decoration:none;margin:0 8px">测试停止</a>
+    <a href="/test?cmd=info" target="_blank" style="color:#94a3b8;text-decoration:none;margin:0 8px">诊断信息</a>
+  </div>
   <div class="site-footer">制作人：任芊羽</div>
 
 </div>
@@ -501,8 +506,8 @@ body {
 (function() {
   console.log('ESP32 小车控制已加载');
 
-  // ========= 手动控制 =========
-  let pointerDownAction = null;
+  // ========= 手动控制（单击切换模式） =========
+  let currentAction = 'stop';
   const stateVal = document.getElementById('stateVal');
   const timerVal = document.getElementById('timerVal');
   const distVal = document.getElementById('distVal');
@@ -515,55 +520,38 @@ body {
         if (t === 'BLOCKED') {
           stateVal.textContent = '⚠ 遇障撤离';
           stateVal.className = 'value val-state state-evacuating';
-          pointerDownAction = null;
+          currentAction = 'stop';
+          dpadBtns.forEach(b => b.classList.remove('active'));
         }
       })
       .catch(() => {});
   }
 
-  // 方向键通用处理函数
-  function handleBtnPress(action) {
-    if (action !== 'stop') {
-      pointerDownAction = action;
-      dpadBtns.forEach(b => b.classList.remove('active'));
-      const activeBtn = document.querySelector(`[data-action="${action}"]`);
-      if (activeBtn) activeBtn.classList.add('active');
-      sendAction(action);
-    } else {
-      pointerDownAction = null;
-      dpadBtns.forEach(b => b.classList.remove('active'));
-      sendAction('stop');
-    }
-  }
-
-  function handleBtnRelease() {
-    if (pointerDownAction) {
-      pointerDownAction = null;
-      dpadBtns.forEach(b => b.classList.remove('active'));
-      sendAction('stop');
-    }
-  }
-
-  // 同时支持 mouse + touch 事件
   dpadBtns.forEach(btn => {
-    // 鼠标
-    btn.addEventListener('mousedown', function(e) {
+    btn.addEventListener('click', function(e) {
       e.preventDefault();
-      handleBtnPress(this.dataset.action);
-    });
-    // 触摸
-    btn.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-      handleBtnPress(this.dataset.action);
+      const action = this.dataset.action;
+      if (action === 'stop') {
+        // STOP 按钮：立即停止
+        currentAction = 'stop';
+        dpadBtns.forEach(b => b.classList.remove('active'));
+        sendAction('stop');
+      } else if (currentAction === action) {
+        // 点击相同方向 → 停止
+        currentAction = 'stop';
+        dpadBtns.forEach(b => b.classList.remove('active'));
+        sendAction('stop');
+      } else {
+        // 点击新方向 → 切换
+        currentAction = action;
+        dpadBtns.forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        sendAction(action);
+      }
     });
   });
 
-  // 全局释放（鼠标松开 / 触摸结束）
-  document.addEventListener('mouseup', handleBtnRelease);
-  document.addEventListener('touchend', handleBtnRelease);
-  document.addEventListener('touchcancel', handleBtnRelease);
-
-  // 键盘
+  // 键盘（按下切换，松开不变）
   const keyMap = {
     'ArrowUp':'forward','w':'forward','W':'forward',
     'ArrowDown':'backward','s':'backward','S':'backward',
@@ -573,27 +561,17 @@ body {
   };
   document.addEventListener('keydown', function(e) {
     const a = keyMap[e.key];
-    if (a && a !== 'stop') { e.preventDefault();
-      if (pointerDownAction !== a) {
-        pointerDownAction = a;
+    if (a) { e.preventDefault();
+      if (a === 'stop') {
+        currentAction = 'stop';
+        dpadBtns.forEach(b => b.classList.remove('active'));
+        sendAction('stop');
+      } else if (currentAction !== a) {
+        currentAction = a;
         dpadBtns.forEach(b => b.classList.remove('active'));
         const el = document.querySelector(`[data-action="${a}"]`);
         if (el) el.classList.add('active');
         sendAction(a);
-      }
-    } else if (a === 'stop') { e.preventDefault();
-      pointerDownAction = null;
-      dpadBtns.forEach(b => b.classList.remove('active'));
-      sendAction('stop');
-    }
-  });
-  document.addEventListener('keyup', function(e) {
-    const a = keyMap[e.key];
-    if (a && a !== 'stop') { e.preventDefault();
-      if (pointerDownAction === a) {
-        pointerDownAction = null;
-        dpadBtns.forEach(b => b.classList.remove('active'));
-        sendAction('stop');
       }
     }
   });
@@ -763,8 +741,64 @@ void handleRoot() {
   server.send(200, "text/html", html_page);
 }
 
+// ============ 电机测试诊断 ============
+void handleTest() {
+  String cmd = server.arg("cmd");
+  Serial.printf(">> 收到测试命令: %s\n", cmd.c_str());
+
+  if (cmd == "forward") {
+    // 先用 digitalWrite 直驱测试（不走 PWM）
+    digitalWrite(PIN_IN1, LOW);
+    digitalWrite(PIN_IN2, HIGH);
+    digitalWrite(PIN_IN3, HIGH);
+    digitalWrite(PIN_IN4, LOW);
+    currentCmd = "test_forward";
+    server.send(200, "text/plain", "OK");
+    Serial.println("  直驱测试: 前进 (digitalWrite)");
+  } else if (cmd == "backward") {
+    digitalWrite(PIN_IN1, HIGH);
+    digitalWrite(PIN_IN2, LOW);
+    digitalWrite(PIN_IN3, LOW);
+    digitalWrite(PIN_IN4, HIGH);
+    currentCmd = "test_backward";
+    server.send(200, "text/plain", "OK");
+    Serial.println("  直驱测试: 后退 (digitalWrite)");
+  } else if (cmd == "stop") {
+    digitalWrite(PIN_IN1, LOW);
+    digitalWrite(PIN_IN2, LOW);
+    digitalWrite(PIN_IN3, LOW);
+    digitalWrite(PIN_IN4, LOW);
+    currentCmd = "stop";
+    Serial.println("  直驱测试: 停止");
+    server.send(200, "text/plain", "OK");
+  } else if (cmd == "pwm_forward") {
+    motorSpeed = 200;
+    motorForward();
+    currentCmd = "test_pwm_f";
+    server.send(200, "text/plain", "OK");
+    Serial.printf("  PWM测试: 前进 speed=%d\n", motorSpeed);
+  } else if (cmd == "pwm_stop") {
+    motorStop();
+    currentCmd = "stop";
+    motorSpeed = 153;
+    Serial.println("  PWM测试: 停止");
+    server.send(200, "text/plain", "OK");
+  } else if (cmd == "info") {
+    String json = "{";
+    json += "\"cmd\":\"" + currentCmd + "\",";
+    json += "\"speed\":" + String(motorSpeed) + ",";
+    json += "\"lineFollowing\":" + String(lineFollowing ? "true" : "false") + ",";
+    json += "}";
+    server.send(200, "application/json", json);
+    Serial.println("  返回诊断信息");
+  } else {
+    server.send(400, "text/plain", "BAD");
+  }
+}
+
 void handleAction() {
   String cmd = server.arg("cmd");
+  Serial.printf(">> 收到动作: %s (当前状态=%s, speed=%d)\n", cmd.c_str(), currentCmd.c_str(), motorSpeed);
 
   // 如果正在巡线，先退出巡线模式
   if (lineFollowing && cmd != "stop") {
@@ -892,6 +926,11 @@ void setup() {
   ledcAttachPin(PIN_IN3, CH_RF);
   ledcSetup(CH_RB, PWM_FREQ, PWM_RES);
   ledcAttachPin(PIN_IN4, CH_RB);
+  // 确保电机引脚为输出（digitalWrite 测试用）
+  pinMode(PIN_IN1, OUTPUT);
+  pinMode(PIN_IN2, OUTPUT);
+  pinMode(PIN_IN3, OUTPUT);
+  pinMode(PIN_IN4, OUTPUT);
   motorStop();
 
   // 初始化巡线传感器引脚
@@ -938,6 +977,7 @@ void setup() {
   server.on("/sensors", handleSensors);
   server.on("/distance", handleDistance);
   server.on("/line_action", handleLineAction);
+  server.on("/test", handleTest);
   server.begin();
   Serial.println("Web 服务器已启动，等待浏览器控制...\n");
 }
