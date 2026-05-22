@@ -42,8 +42,8 @@ void readSensors(bool* values) {
 #define PWM_FREQ     5000   // 5kHz
 #define PWM_RES      8      // 8 位分辨率 (0-255)
 #define MAX_SPEED    255
-// 40% 速度 ≈ 100（L298N 需要足够电压才能转动）
-int motorSpeed = 100;
+// 45% 速度 ≈ 115（L298N 需要足够电压才能转动）
+int motorSpeed = 115;
 
 // PWM 通道分配
 const int CH_LF = 0;  // IN1 - 左前
@@ -122,8 +122,8 @@ const unsigned long AUTO_MOVE_DURATION = 5000;
 
 // 巡线模式
 bool lineFollowing = false;
-const int LINE_FOLLOW_SPEED = 80;  // 巡线速度（慢速，0-255）
-int savedMotorSpeed = 100;          // 保存的原速度
+const int LINE_FOLLOW_SPEED = 90;  // 巡线速度（慢速，0-255）
+int savedMotorSpeed = 115;          // 保存的原速度
 unsigned long lastLineCheck = 0;
 
 // ============ HTML 控制页面（嵌入在代码中） ============
