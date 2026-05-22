@@ -339,6 +339,22 @@ body {
   margin-top: 6px;
 }
 
+/* ===== 顶部标题 & 底部版权 ===== */
+.site-header {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 800;
+  color: #1e293b;
+  padding: 18px 0 6px;
+  letter-spacing: 1px;
+}
+.site-footer {
+  text-align: center;
+  font-size: 13px;
+  color: #94a3b8;
+  padding: 6px 0 18px;
+}
+
 /* =========================================================
    iPad / 平板响应式适配
    ========================================================= */
@@ -357,6 +373,8 @@ body {
   .val-state { font-size: 16px !important; }
   .sensor-mini .dot { width: 14px; height: 14px; }
   .sensor-mini { gap: 8px; }
+  .site-header { font-size: 26px; padding: 22px 0 10px; }
+  .site-footer { font-size: 15px; padding: 10px 0 22px; }
 
   /* 底部三张操作卡：2列布局 */
   .card-grid {
@@ -393,6 +411,9 @@ body {
 </head>
 <body>
 <div class="container">
+
+  <!-- ===== 顶部标题 ===== -->
+  <div class="site-header">🏫 谷山学校智能小车</div>
 
   <!-- ===== 状态卡片 ===== -->
   <div class="card">
@@ -467,6 +488,9 @@ body {
   </div>
 
   </div><!-- /card-grid -->
+
+  <!-- ===== 底部版权 ===== -->
+  <div class="site-footer">制作人：任芊羽</div>
 
 </div>
 
